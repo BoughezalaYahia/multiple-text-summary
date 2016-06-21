@@ -208,15 +208,20 @@ def ComputeSummary():
     compressRate = 1 - float(int(bottomButtonsFrame.CompressRate)/100)
     try:
         sentences = list()
+        sentences_ori = list()
         processWord = list()
         bloblist = list()
         sentences.append(inputFrame.lower())
+        sentences_ori.append(inputFrame)
         if Test.i == 2:
             sentences.append(inputFrame2.lower())
+            sentences_ori.append(inputFrame2)
             compressRate = int(compressRate*(totalSent(sentences[0])+totalSent(sentences[1])))
         elif Test.i == 3:
             sentences.append(inputFrame2.lower())
             sentences.append(inputFrame3.lower())
+            sentences_ori.append(inputFrame2)
+            sentences_ori.append(inputFrame3)
             compressRate = int(compressRate*(totalSent(sentences[0])+totalSent(sentences[1])+totalSent(sentences[2])))
         else:
             compressRate = int(compressRate*(totalSent(sentences[0])))
@@ -275,7 +280,7 @@ def ComputeSummary():
             for word, score in sorted_words[:5]:
                 print("Word",count_word,": ",word, " TF-IDF: ",abs(round(score,10)))
                 count_word += 1
-  
+        
         ##============================================================================##
         ## variable to keep values and words
         total_value = list()
@@ -286,7 +291,6 @@ def ComputeSummary():
   
         ## Function to calculate sentence value
         def sent_value(word_value, doc_value):
-            #return (1-word_value)/(1-doc_value)
             try:
                 return word_value/doc_value
             except:
@@ -300,11 +304,11 @@ def ComputeSummary():
         sentence_word_value = 0
         #======TEST TRY BASED ON TEXT=======
         overall_text = ""
-        for i in range(len(sentences)):
-            overall_text+=sentences[i] 
+        for i in range(len(sentences_ori)):
+            overall_text+=sentences_ori[i] 
         sentences_list = sent_tokenize(overall_text) 
         list_toBeSorted = list()
-  
+        
         ## Calculate total value in document
         for i, blob in enumerate(bloblist):
             scores = {word: tfidf(word, blob, bloblist) for word in blob.words}
@@ -322,10 +326,31 @@ def ComputeSummary():
                         sentence_word_value += tfidf(word,blob,bloblist)
                 list_toBeSorted.append(dict_pair(sent, sent_value(sentence_word_value, total_value[i])))
                 sorted_sent = sorted(list_toBeSorted, key = lambda x:x[1], reverse=False)
-  
+
+            
+            if abs(sorted_sent[len(sorted_sent)-1][1]) > abs(sorted_sent[0][1]):
+                for sent in sentences_list:
+                    sentence_word_value = 0
+                    for word in word_tokenize(sent):
+                        if word in blob.words:
+                            sentence_word_value += tfidf(word,blob,bloblist)
+                    list_toBeSorted.append(dict_pair(sent, sent_value(sentence_word_value, total_value[i])))
+                    sorted_sent = sorted(list_toBeSorted, key = lambda x:x[1], reverse=True)
+
+        ## Pairing between document and it's total_value ---NEW UPDATE
+        doc_toBeSorted = list()
+        sorted_doc = list()
+        overall_doc = ""
+        for i in range(len(sentences_ori)):
+            doc_toBeSorted.append(dict_pair(sentences_ori[i],total_value[i]))
+            sorted_doc = sorted(doc_toBeSorted, key = lambda x:x[1], reverse = False)
+        for doc, val in sorted_doc:
+            overall_doc += doc
+        sent_new_list = sent_tokenize(overall_doc)
+            
         ## Print Total tf/idf value for each documents
         counter = 0
-        for i in enumerate(bloblist):
+        for i,blob in enumerate(bloblist):
             print("Total value of document " ,str(counter+1) ," = ", str(abs(total_value[counter])))
             counter += 1
   
@@ -343,11 +368,11 @@ def ComputeSummary():
         sentCounter = 0
         wordCounter = 0
         print("\nSummary:")
-        for sent_List in sentences_list:
+        for sent_List in sent_new_list:
             for sent in sentList:
                 if sent_List in sent:
-                    print(sent_List[0][0].upper()+sent_List[1:],end = ' ')
-                    textBoxFrame.outputTxtBox.insert(END,sent_List[0][0].upper()+sent_List[1:]+' ')
+                    print(sent_List,end = ' ')
+                    textBoxFrame.outputTxtBox.insert(END,sent_List+' ')
                     sentCounter+=1
                     wordCounter += len(re.findall(r'\w+',sent_List))
         
